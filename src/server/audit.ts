@@ -64,13 +64,13 @@ export async function listAudit(
   query: AuditQuery = {},
 ): Promise<{ entries: AuditEntry[]; truncated: boolean }> {
   const limit = Math.min(Math.max(query.limit ?? 200, 1), 1000)
-  const scan = 1000
 
   const objects = await listKeys(PREFIX)
   // Keys sort chronologically; reverse for newest-first.
   objects.sort((a, b) => (a.key < b.key ? 1 : a.key > b.key ? -1 : 0))
-  const truncated = objects.length > scan
-  const candidates = objects.slice(0, scan)
+  const truncated = objects.length > limit
+  // Only fetch the newest `limit` records to bound R2 round-trips per request.
+  const candidates = objects.slice(0, limit)
 
   const loaded = await Promise.all(candidates.map((o) => getJson<AuditEntry>(o.key)))
   let entries = loaded.filter((e): e is AuditEntry => e != null)
@@ -79,5 +79,5 @@ export async function listAudit(
   if (query.actor) entries = entries.filter((e) => e.actor === query.actor)
   if (query.targetId) entries = entries.filter((e) => e.targetId === query.targetId)
 
-  return { entries: entries.slice(0, limit), truncated }
+  return { entries, truncated }
 }
