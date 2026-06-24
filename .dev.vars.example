@@ -1,0 +1,10 @@
+# Local secrets for `vite dev` / `wrangler dev` (miniflare). Git-ignored.
+# Production secrets are set separately via `wrangler secret put`.
+MASTER_ENCRYPTION_KEY=<base64-32-bytes>
+SESSION_PASSWORD=<hex-32-bytes>
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=<admin-password>
+ADMIN_NAME=Administrator
+# Local dev runs on http, so disable Secure cookies here.
+COOKIE_SECURE=false
+TRUST_PROXY=false

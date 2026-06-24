@@ -1,0 +1,25 @@
+node_modules
+.DS_Store
+dist
+dist-ssr
+*.local
+.env
+.nitro
+.tanstack
+.wrangler
+.output
+.vinxi
+__unconfig*
+todos.json
+
+# Local filesystem storage fallback (dev only — never commit secrets)
+.data
+# Secret material
+*.pem
+*.key.local
+
+# Playwright MCP test artifacts
+.playwright-mcp
+
+# Wrangler local secrets (used by `vite dev` / `wrangler dev`)
+.dev.vars

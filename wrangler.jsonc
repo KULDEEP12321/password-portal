@@ -1,0 +1,32 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "password-portal",
+  "compatibility_date": "2026-06-22",
+  // node:crypto (AES-256-GCM) + bcryptjs need Node APIs; this flag also
+  // populates process.env from the vars/secrets below at runtime.
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "@tanstack/react-start/server-entry",
+  "observability": { "enabled": true },
+
+  // Native R2 binding — the Worker reads/writes the bucket through `env.SECRETS_BUCKET`
+  // (see src/server/storage/r2binding.ts). No S3 access keys required.
+  "r2_buckets": [
+    {
+      "binding": "SECRETS_BUCKET",
+      "bucket_name": "secret-key-2026"
+    }
+  ],
+
+  // Non-sensitive config. Sensitive values (MASTER_ENCRYPTION_KEY, SESSION_PASSWORD,
+  // ADMIN_PASSWORD) are set with `wrangler secret put` — never committed here.
+  "vars": {
+    "APP_NAME": "Vault",
+    "STORAGE_DRIVER": "r2binding",
+    "COOKIE_SECURE": "true",
+    "TRUST_PROXY": "false",
+    "SESSION_COOKIE_NAME": "pp_session",
+    "SESSION_MAX_AGE_SEC": "28800",
+    "ADMIN_USERNAME": "admin",
+    "ADMIN_NAME": "Administrator"
+  }
+}
