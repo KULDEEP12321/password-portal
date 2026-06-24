@@ -57,6 +57,11 @@ export const idSchema = z.object({ id: idValue })
 
 export const roleSchema = z.enum(['admin', 'editor', 'viewer'])
 
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required').max(200),
+  newPassword: z.string().min(8, 'New password must be at least 8 characters').max(200),
+})
+
 export const createUserSchema = z.object({
   username: z
     .string()

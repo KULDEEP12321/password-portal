@@ -129,6 +129,12 @@ export async function markLogin(user: UserRecord): Promise<void> {
   await putJson(keyFor(user.username), user)
 }
 
+/** Re-hash and persist a new password for an existing user. */
+export async function setUserPassword(user: UserRecord, newPassword: string): Promise<void> {
+  user.passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS)
+  await putJson(keyFor(user.username), user)
+}
+
 export async function countUsers(): Promise<number> {
   const keys = await listKeys(PREFIX)
   return keys.length

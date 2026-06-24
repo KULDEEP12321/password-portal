@@ -105,6 +105,7 @@ export type AuditAction =
   | 'secret.reveal'
   | 'user.create'
   | 'user.delete'
+  | 'user.password'
   | 'bootstrap'
 
 export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
@@ -117,6 +118,7 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   'secret.reveal': 'Revealed secret',
   'user.create': 'Created user',
   'user.delete': 'Deleted user',
+  'user.password': 'Changed password',
   bootstrap: 'Bootstrapped admin',
 }
 

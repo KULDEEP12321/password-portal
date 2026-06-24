@@ -10,6 +10,7 @@ import {
 import { KeyRound, LogOut, ScrollText, ShieldCheck, Users } from 'lucide-react'
 import { logoutFn, meFn } from '../../fn/auth'
 import { Button, RoleBadge, cn } from '../../components/ui'
+import { ChangePasswordModal } from '../../components/ChangePasswordModal'
 import { ROLE_CAN } from '../../types'
 
 export const Route = createFileRoute('/dashboard')({
@@ -26,6 +27,7 @@ function DashboardLayout() {
   const router = useRouter()
   const navigate = useNavigate()
   const [loggingOut, setLoggingOut] = useState(false)
+  const [showChangePw, setShowChangePw] = useState(false)
   const isAdmin = ROLE_CAN.administer(user.role)
 
   async function logout() {
@@ -86,6 +88,15 @@ function DashboardLayout() {
               </span>
               <RoleBadge role={user.role} />
             </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setShowChangePw(true)}
+              title="Change password"
+            >
+              <KeyRound size={15} />
+              <span className="hidden sm:inline">Password</span>
+            </Button>
             <Button size="sm" variant="ghost" onClick={logout} loading={loggingOut} title="Sign out">
               <LogOut size={15} />
               <span className="hidden sm:inline">Sign out</span>
@@ -97,6 +108,8 @@ function DashboardLayout() {
       <main className="mx-auto max-w-6xl px-4 py-7">
         <Outlet />
       </main>
+
+      {showChangePw && <ChangePasswordModal onClose={() => setShowChangePw(false)} />}
     </div>
   )
 }

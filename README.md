@@ -48,6 +48,8 @@ Workers · Cloudflare R2 · Zod · bcrypt · sealed-cookie sessions.
 - 📋 **Copy to clipboard**, **show/hide**, and a **strong-value generator**.
 - 👥 **Authentication & RBAC** — sealed-cookie sessions; `admin` / `editor` /
   `viewer` roles enforced on the server.
+- 🔑 **Self-service password change** — any signed-in user can rotate their own
+  password from the dashboard (verifies the current password first).
 - 📝 **Audit log** — every login, reveal, create, update, delete, and user change
   is recorded with actor, target, IP, and timestamp.
 - 🧱 **Clean architecture** — strict separation of UI, server functions, domain

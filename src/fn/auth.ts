@@ -4,24 +4,32 @@
  * server and is stripped from the client bundle.
  */
 import { createServerFn } from '@tanstack/react-start'
-import { getActorContext, getAppSession, getCurrentUser } from '../server/session'
+import { getActorContext, getAppSession, getCurrentUser, requireUser } from '../server/session'
 import {
   ensureBootstrap,
   getUserByUsername,
   markLogin,
+  setUserPassword,
   toPublicUser,
   verifyCredentials,
 } from '../server/users'
 import { writeAudit } from '../server/audit'
 import { enforceRateLimit } from '../server/ratelimit'
 import { Errors } from '../server/errors'
-import { loginSchema } from '../server/schemas'
+import { changePasswordSchema, loginSchema } from '../server/schemas'
 import type { PublicUser } from '../types'
 
 export const meFn = createServerFn({ method: 'GET' }).handler(
   async (): Promise<PublicUser | null> => {
-    await ensureBootstrap()
-    return getCurrentUser()
+    // The auth probe must never throw: a transient storage error (e.g. an R2 blip
+    // on a cold isolate) should land the user on /login, not crash the route tree.
+    try {
+      await ensureBootstrap()
+      return await getCurrentUser()
+    } catch (err) {
+      console.error('[meFn] failed to resolve current user:', err)
+      return null
+    }
   },
 )
 
@@ -81,6 +89,41 @@ export const loginFn = createServerFn({ method: 'POST' })
       userAgent,
     })
     return toPublicUser(user)
+  })
+
+export const changePasswordFn = createServerFn({ method: 'POST' })
+  .validator((d: unknown) => changePasswordSchema.parse(d))
+  .handler(async ({ data }): Promise<{ ok: true }> => {
+    const current = await requireUser()
+    const { ip, userAgent } = getActorContext()
+
+    // Verify the current password before allowing a change.
+    const record = await getUserByUsername(current.username)
+    const ok = await verifyCredentials(record, data.currentPassword)
+    if (!record || !ok) {
+      await writeAudit({
+        actor: current.username,
+        actorId: current.id,
+        action: 'user.password',
+        ip,
+        userAgent,
+        success: false,
+        detail: 'Incorrect current password',
+      })
+      throw Errors.badRequest('Your current password is incorrect.')
+    }
+
+    await setUserPassword(record, data.newPassword)
+    await writeAudit({
+      actor: current.username,
+      actorId: current.id,
+      action: 'user.password',
+      targetId: record.id,
+      targetName: record.username,
+      ip,
+      userAgent,
+    })
+    return { ok: true }
   })
 
 export const logoutFn = createServerFn({ method: 'POST' }).handler(async () => {
