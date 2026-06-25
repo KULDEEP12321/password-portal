@@ -133,7 +133,12 @@ export function SecretRow({
       </td>
 
       <td>
-        <span className="text-sm" style={{ color: 'var(--text-soft)' }} title={`Updated by ${secret.updatedBy}`}>
+        <span
+          className="text-sm"
+          style={{ color: 'var(--text-soft)' }}
+          title={`Updated by ${secret.updatedBy}`}
+          suppressHydrationWarning
+        >
           {formatRelative(secret.updatedAt)}
         </span>
       </td>

@@ -85,8 +85,12 @@ function UsersPage() {
                     <td>
                       <RoleBadge role={u.role} />
                     </td>
-                    <td style={{ color: 'var(--text-soft)' }}>{formatRelative(u.createdAt)}</td>
-                    <td style={{ color: 'var(--text-soft)' }}>{formatRelative(u.lastLoginAt)}</td>
+                    <td style={{ color: 'var(--text-soft)' }} suppressHydrationWarning>
+                      {formatRelative(u.createdAt)}
+                    </td>
+                    <td style={{ color: 'var(--text-soft)' }} suppressHydrationWarning>
+                      {formatRelative(u.lastLoginAt)}
+                    </td>
                     <td>
                       <div className="flex justify-end">
                         <IconButton

@@ -5,7 +5,7 @@
  * the underlying user action.
  */
 import { randomUUID } from 'node:crypto'
-import { getJson, listKeys, putJson } from './db'
+import { delKey, getJson, listKeys, putJson } from './db'
 import type { AuditAction, AuditEntry } from '../types'
 
 const PREFIX = 'audit/'
@@ -80,4 +80,11 @@ export async function listAudit(
   if (query.targetId) entries = entries.filter((e) => e.targetId === query.targetId)
 
   return { entries, truncated }
+}
+
+/** Permanently delete every audit entry. Returns the number removed. */
+export async function clearAudit(): Promise<number> {
+  const objects = await listKeys(PREFIX)
+  await Promise.all(objects.map((o) => delKey(o.key)))
+  return objects.length
 }

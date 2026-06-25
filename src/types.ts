@@ -106,6 +106,7 @@ export type AuditAction =
   | 'user.create'
   | 'user.delete'
   | 'user.password'
+  | 'audit.clear'
   | 'bootstrap'
 
 export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
@@ -119,6 +120,7 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   'user.create': 'Created user',
   'user.delete': 'Deleted user',
   'user.password': 'Changed password',
+  'audit.clear': 'Cleared audit log',
   bootstrap: 'Bootstrapped admin',
 }
 
