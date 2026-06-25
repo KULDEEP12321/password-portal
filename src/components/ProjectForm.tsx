@@ -103,11 +103,7 @@ export function ProjectForm({
           ) : (
             <div className="grid gap-1.5" style={{ maxHeight: 280, overflowY: 'auto' }}>
               {selectable.map((u) => (
-                <label
-                  key={u.id}
-                  className="demo-list-item"
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer' }}
-                >
+                <label key={u.id} className="opt-row">
                   <input
                     type="checkbox"
                     checked={memberIds.includes(u.id)}

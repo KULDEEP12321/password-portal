@@ -11,6 +11,7 @@ import { FolderOpen, KeyRound, LogOut, ScrollText, ShieldCheck, Users } from 'lu
 import { logoutFn, meFn } from '../../fn/auth'
 import { Button, RoleBadge, cn } from '../../components/ui'
 import { ChangePasswordModal } from '../../components/ChangePasswordModal'
+import { ThemeToggle } from '../../components/ThemeToggle'
 import { ROLE_CAN } from '../../types'
 
 export const Route = createFileRoute('/dashboard')({
@@ -42,13 +43,16 @@ function DashboardLayout() {
   }
 
   const navLinkClass = 'btn btn-ghost btn-sm'
-  const activeProps = { className: cn(navLinkClass, 'is-active'), style: { color: 'var(--text)', background: 'var(--panel-2)' } }
+  const activeProps = {
+    className: cn(navLinkClass, 'is-active'),
+    style: { color: 'var(--accent-soft)', background: 'var(--accent-bg)' },
+  }
 
   return (
     <div className="min-h-screen">
       <header
         className="sticky top-0 z-30 border-b hairline"
-        style={{ background: 'rgba(10,13,20,0.82)', backdropFilter: 'blur(10px)' }}
+        style={{ background: 'var(--panel)' }}
       >
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4">
           <div className="flex items-center gap-5">
@@ -87,7 +91,8 @@ function DashboardLayout() {
             </nav>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            <ThemeToggle />
             <div className="hidden items-center gap-2 sm:flex">
               <span className="text-sm" style={{ color: 'var(--text-soft)' }}>
                 {user.name}

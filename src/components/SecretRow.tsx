@@ -73,7 +73,7 @@ export function SecretRow({
   }
 
   return (
-    <tr className="fade-in">
+    <tr>
       <td>
         <div className="font-medium">{secret.name}</div>
         <div className="mt-0.5 flex items-center gap-2 text-xs" style={{ color: 'var(--text-faint)' }}>

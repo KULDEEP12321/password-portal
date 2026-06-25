@@ -72,7 +72,7 @@ function UsersPage() {
               </thead>
               <tbody>
                 {users.map((u) => (
-                  <tr key={u.id} className="fade-in">
+                  <tr key={u.id}>
                     <td className="font-medium">
                       {u.username}
                       {u.id === current.id && (

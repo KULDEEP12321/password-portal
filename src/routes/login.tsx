@@ -3,6 +3,7 @@ import { createFileRoute, redirect, useNavigate, useRouter } from '@tanstack/rea
 import { KeyRound, Lock, ShieldCheck, User } from 'lucide-react'
 import { loginFn, meFn } from '../fn/auth'
 import { Alert, Button, Field } from '../components/ui'
+import { ThemeToggle } from '../components/ThemeToggle'
 import { errorMessage } from '../lib/errors'
 
 export const Route = createFileRoute('/login')({
@@ -36,7 +37,10 @@ function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-4 py-12">
+    <main className="relative flex min-h-screen items-center justify-center px-4 py-12">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center text-center">
           <div

@@ -104,7 +104,7 @@ function ProjectsPage() {
               </thead>
               <tbody>
                 {projects.map((p) => (
-                  <tr key={p.id} className="fade-in">
+                  <tr key={p.id}>
                     <td>
                       <div className="font-medium">{p.name}</div>
                       {p.description && (

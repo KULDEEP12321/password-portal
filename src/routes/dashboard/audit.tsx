@@ -130,7 +130,7 @@ function AuditPage() {
               </thead>
               <tbody>
                 {filtered.map((e) => (
-                  <tr key={e.id} className="fade-in">
+                  <tr key={e.id}>
                     <td
                       style={{ whiteSpace: 'nowrap', color: 'var(--text-soft)' }}
                       suppressHydrationWarning
