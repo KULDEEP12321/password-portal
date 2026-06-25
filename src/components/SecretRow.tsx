@@ -12,11 +12,13 @@ const MASK = '•••••••••••••'
 export function SecretRow({
   secret,
   canWrite,
+  onView,
   onEdit,
   onDelete,
 }: {
   secret: SecretMeta
   canWrite: boolean
+  onView: (secret: SecretMeta) => void
   onEdit: (secret: SecretMeta) => void
   onDelete: (secret: SecretMeta) => void
 }) {
@@ -75,7 +77,22 @@ export function SecretRow({
   return (
     <tr>
       <td>
-        <div className="font-medium">{secret.name}</div>
+        <button
+          type="button"
+          onClick={() => onView(secret)}
+          title="View details (URL, notes, value)"
+          className="font-medium"
+          style={{
+            color: 'var(--accent-soft)',
+            background: 'none',
+            border: 0,
+            padding: 0,
+            cursor: 'pointer',
+            textAlign: 'left',
+          }}
+        >
+          {secret.name}
+        </button>
         <div className="mt-0.5 flex items-center gap-2 text-xs" style={{ color: 'var(--text-faint)' }}>
           {secret.username && <span>{secret.username}</span>}
           {secret.url && /^https?:\/\//i.test(secret.url) && (

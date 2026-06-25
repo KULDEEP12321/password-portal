@@ -4,6 +4,7 @@ import { FolderOpen, FolderPlus, KeyRound, Plus, Search, ShieldAlert } from 'luc
 import { deleteSecretFn, listSecretsFn, revealSecretFn } from '../../fn/secrets'
 import { listProjectsFn } from '../../fn/projects'
 import { SecretRow } from '../../components/SecretRow'
+import { SecretDetail } from '../../components/SecretDetail'
 import { SecretForm } from '../../components/SecretForm'
 import { Alert, Button, EmptyState, Modal, cn } from '../../components/ui'
 import { ROLE_CAN, SECRET_TYPES } from '../../types'
@@ -44,6 +45,7 @@ function SecretsPage() {
   const [typeFilter, setTypeFilter] = useState<SecretType | 'all'>('all')
   const [tagFilter, setTagFilter] = useState<string | null>(null)
   const [editing, setEditing] = useState<Editing | null>(null)
+  const [viewing, setViewing] = useState<SecretMeta | null>(null)
   const [deleting, setDeleting] = useState<SecretMeta | null>(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [banner, setBanner] = useState<string | null>(null)
@@ -246,6 +248,7 @@ function SecretsPage() {
                     key={s.id}
                     secret={s}
                     canWrite={canWrite}
+                    onView={setViewing}
                     onEdit={startEdit}
                     onDelete={setDeleting}
                   />
@@ -266,6 +269,18 @@ function SecretsPage() {
           onSaved={async () => {
             setEditing(null)
             await refresh()
+          }}
+        />
+      )}
+
+      {viewing && (
+        <SecretDetail
+          secret={viewing}
+          canWrite={canWrite}
+          onClose={() => setViewing(null)}
+          onEdit={(s) => {
+            setViewing(null)
+            void startEdit(s)
           }}
         />
       )}
