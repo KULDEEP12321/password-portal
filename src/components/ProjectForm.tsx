@@ -15,7 +15,7 @@ export function ProjectForm({
   project?: PublicProject
   users: PublicUser[]
   onClose: () => void
-  onSaved: () => void | Promise<void>
+  onSaved: (project: PublicProject) => void | Promise<void>
 }) {
   const [name, setName] = useState(project?.name ?? '')
   const [description, setDescription] = useState(project?.description ?? '')
@@ -37,12 +37,11 @@ export function ProjectForm({
     setSaving(true)
     try {
       const base = { name: name.trim(), description: description.trim(), memberIds }
-      if (mode === 'create') {
-        await createProjectFn({ data: base })
-      } else {
-        await updateProjectFn({ data: { ...base, id: project!.id } })
-      }
-      await onSaved()
+      const saved =
+        mode === 'create'
+          ? await createProjectFn({ data: base })
+          : await updateProjectFn({ data: { ...base, id: project!.id } })
+      await onSaved(saved)
     } catch (err) {
       setError(errorMessage(err, 'Could not save the project.'))
       setSaving(false)

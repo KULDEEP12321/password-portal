@@ -1,6 +1,14 @@
 import { useMemo, useState } from 'react'
-import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
-import { FolderOpen, FolderPlus, KeyRound, Pencil, Trash2, Users as UsersIcon } from 'lucide-react'
+import { createFileRoute, redirect, useNavigate, useRouter } from '@tanstack/react-router'
+import {
+  ArrowRight,
+  FolderOpen,
+  FolderPlus,
+  KeyRound,
+  Pencil,
+  Trash2,
+  Users as UsersIcon,
+} from 'lucide-react'
 import { deleteProjectFn, listProjectsFn } from '../../fn/projects'
 import { listUsersFn } from '../../fn/users'
 import { ProjectForm } from '../../components/ProjectForm'
@@ -26,6 +34,11 @@ type Editing = { mode: 'create' } | { mode: 'edit'; project: PublicProject }
 function ProjectsPage() {
   const { projects, users } = Route.useLoaderData()
   const router = useRouter()
+  const navigate = useNavigate()
+
+  function openProject(id: string) {
+    navigate({ to: '/dashboard', search: { project: id } })
+  }
   const [editing, setEditing] = useState<Editing | null>(null)
   const [deleting, setDeleting] = useState<PublicProject | null>(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
@@ -104,9 +117,16 @@ function ProjectsPage() {
               </thead>
               <tbody>
                 {projects.map((p) => (
-                  <tr key={p.id}>
+                  <tr
+                    key={p.id}
+                    onClick={() => openProject(p.id)}
+                    style={{ cursor: 'pointer' }}
+                    title={`Open ${p.name}`}
+                  >
                     <td>
-                      <div className="font-medium">{p.name}</div>
+                      <div className="font-medium" style={{ color: 'var(--accent-soft)' }}>
+                        {p.name}
+                      </div>
                       {p.description && (
                         <div className="mt-0.5 text-xs" style={{ color: 'var(--text-faint)' }}>
                           {p.description}
@@ -128,8 +148,11 @@ function ProjectsPage() {
                     <td style={{ color: 'var(--text-soft)' }} suppressHydrationWarning>
                       {formatRelative(p.createdAt)}
                     </td>
-                    <td>
+                    <td onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-0.5">
+                        <IconButton label="Open project" onClick={() => openProject(p.id)}>
+                          <ArrowRight size={16} />
+                        </IconButton>
                         <IconButton
                           label="Edit project"
                           onClick={() => setEditing({ mode: 'edit', project: p })}
@@ -155,9 +178,16 @@ function ProjectsPage() {
           project={editing.mode === 'edit' ? editing.project : undefined}
           users={users}
           onClose={() => setEditing(null)}
-          onSaved={async () => {
+          onSaved={async (saved) => {
+            const wasCreate = editing.mode === 'create'
             setEditing(null)
-            await router.invalidate()
+            // Drop the admin straight into a freshly created project so they can
+            // start adding secrets; edits just refresh the list in place.
+            if (wasCreate) {
+              await navigate({ to: '/dashboard', search: { project: saved.id } })
+            } else {
+              await router.invalidate()
+            }
           }}
         />
       )}
