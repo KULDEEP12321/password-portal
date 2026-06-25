@@ -7,7 +7,7 @@ import {
   useNavigate,
   useRouter,
 } from '@tanstack/react-router'
-import { KeyRound, LogOut, ScrollText, ShieldCheck, Users } from 'lucide-react'
+import { FolderOpen, KeyRound, LogOut, ScrollText, ShieldCheck, Users } from 'lucide-react'
 import { logoutFn, meFn } from '../../fn/auth'
 import { Button, RoleBadge, cn } from '../../components/ui'
 import { ChangePasswordModal } from '../../components/ChangePasswordModal'
@@ -66,6 +66,12 @@ function DashboardLayout() {
                 <KeyRound size={15} />
                 Secrets
               </Link>
+              {isAdmin && (
+                <Link to="/dashboard/projects" className={navLinkClass} activeProps={activeProps}>
+                  <FolderOpen size={15} />
+                  Projects
+                </Link>
+              )}
               {isAdmin && (
                 <Link to="/dashboard/audit" className={navLinkClass} activeProps={activeProps}>
                   <ScrollText size={15} />

@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
-import { createFileRoute, useRouter } from '@tanstack/react-router'
-import { KeyRound, Plus, Search, ShieldAlert } from 'lucide-react'
-import { listSecretsFn, deleteSecretFn, revealSecretFn } from '../../fn/secrets'
+import { Link, createFileRoute, useNavigate, useRouter } from '@tanstack/react-router'
+import { FolderOpen, FolderPlus, KeyRound, Plus, Search, ShieldAlert } from 'lucide-react'
+import { deleteSecretFn, listSecretsFn, revealSecretFn } from '../../fn/secrets'
+import { listProjectsFn } from '../../fn/projects'
 import { SecretRow } from '../../components/SecretRow'
 import { SecretForm } from '../../components/SecretForm'
 import { Alert, Button, EmptyState, Modal, cn } from '../../components/ui'
@@ -10,19 +11,34 @@ import type { RevealResult, SecretMeta, SecretType } from '../../types'
 import { errorMessage } from '../../lib/errors'
 
 export const Route = createFileRoute('/dashboard/')({
-  loader: () => listSecretsFn(),
+  validateSearch: (search: Record<string, unknown>): { project?: string } => ({
+    project: typeof search.project === 'string' ? search.project : undefined,
+  }),
+  loaderDeps: ({ search }) => ({ project: search.project }),
+  loader: async ({ deps }) => {
+    const projects = await listProjectsFn()
+    const activeProjectId =
+      (deps.project && projects.find((p) => p.id === deps.project)?.id) ??
+      projects[0]?.id ??
+      null
+    const secrets = activeProjectId
+      ? await listSecretsFn({ data: { projectId: activeProjectId } })
+      : []
+    return { projects, activeProjectId, secrets }
+  },
   component: SecretsPage,
 })
 
-type Editing =
-  | { mode: 'create' }
-  | { mode: 'edit'; meta: SecretMeta; reveal: RevealResult }
+type Editing = { mode: 'create' } | { mode: 'edit'; meta: SecretMeta; reveal: RevealResult }
 
 function SecretsPage() {
-  const secrets = Route.useLoaderData()
+  const { projects, activeProjectId, secrets } = Route.useLoaderData()
   const { user } = Route.useRouteContext()
   const router = useRouter()
+  const navigate = useNavigate({ from: Route.fullPath })
   const canWrite = ROLE_CAN.write(user.role)
+  const isAdmin = ROLE_CAN.administer(user.role)
+  const activeProject = projects.find((p) => p.id === activeProjectId) ?? null
 
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<SecretType | 'all'>('all')
@@ -78,16 +94,58 @@ function SecretsPage() {
     }
   }
 
+  // No accessible projects.
+  if (projects.length === 0) {
+    return (
+      <div className="surface overflow-hidden">
+        <EmptyState
+          icon={<FolderOpen size={26} />}
+          title="No projects yet"
+          description={
+            isAdmin
+              ? 'Create a project to start storing secrets in it.'
+              : 'You have not been added to any project yet. Ask an admin to give you access.'
+          }
+          action={
+            isAdmin ? (
+              <Link to="/dashboard/projects" className="btn btn-primary">
+                <FolderPlus size={16} />
+                Manage projects
+              </Link>
+            ) : undefined
+          }
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="grid gap-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Secrets</h1>
+          <div className="flex items-center gap-2">
+            <FolderOpen size={20} style={{ color: 'var(--accent-soft)' }} />
+            <select
+              className="input"
+              style={{ maxWidth: 280, fontWeight: 600, fontSize: '1.05rem' }}
+              value={activeProjectId ?? ''}
+              onChange={(e) => navigate({ search: { project: e.target.value } })}
+              aria-label="Select project"
+            >
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
           <p className="mt-1 text-sm" style={{ color: 'var(--text-soft)' }}>
-            {secrets.length} stored · encrypted at rest with AES-256-GCM
+            {secrets.length} secret{secrets.length === 1 ? '' : 's'} · encrypted with AES-256-GCM ·{' '}
+            {activeProject?.memberIds.length ?? 0} member
+            {(activeProject?.memberIds.length ?? 0) === 1 ? '' : 's'}
           </p>
         </div>
-        {canWrite && (
+        {canWrite && activeProjectId && (
           <Button variant="primary" onClick={() => setEditing({ mode: 'create' })}>
             <Plus size={16} />
             New secret
@@ -152,12 +210,12 @@ function SecretsPage() {
         {filtered.length === 0 ? (
           <EmptyState
             icon={<KeyRound size={26} />}
-            title={secrets.length === 0 ? 'No secrets yet' : 'No matches'}
+            title={secrets.length === 0 ? 'No secrets in this project' : 'No matches'}
             description={
               secrets.length === 0
                 ? canWrite
-                  ? 'Add your first secret to get started. It will be encrypted before storage.'
-                  : 'No secrets have been added yet.'
+                  ? 'Add the first secret to this project. It will be encrypted before storage.'
+                  : 'No secrets have been added to this project yet.'
                 : 'Try a different search or filter.'
             }
             action={
@@ -198,9 +256,10 @@ function SecretsPage() {
         )}
       </div>
 
-      {editing && (
+      {editing && activeProjectId && (
         <SecretForm
           mode={editing.mode}
+          projectId={editing.mode === 'edit' ? editing.meta.projectId : activeProjectId}
           meta={editing.mode === 'edit' ? editing.meta : undefined}
           reveal={editing.mode === 'edit' ? editing.reveal : undefined}
           onClose={() => setEditing(null)}

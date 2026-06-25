@@ -8,6 +8,7 @@ import { randomUUID } from 'node:crypto'
 import { delKey, getJson, listKeys, putJson } from './db'
 import { getEnv } from './env'
 import { writeAudit } from './audit'
+import { countProjects, createProject } from './projects'
 import type { PublicUser, Role } from '../types'
 
 // bcryptjs can't reliably auto-detect a CSPRNG in the Workers runtime, so wire it
@@ -166,6 +167,21 @@ export function ensureBootstrap(): Promise<void> {
       })
       // eslint-disable-next-line no-console
       console.info(`[bootstrap] Created initial admin user "${user.username}".`)
+
+      // Seed a default project so there is always somewhere to store secrets.
+      if ((await countProjects()) === 0) {
+        const project = await createProject(
+          { name: 'General', description: 'Default project.', memberIds: [user.id] },
+          user.username,
+        )
+        await writeAudit({
+          actor: 'system',
+          action: 'project.create',
+          targetId: project.id,
+          targetName: project.name,
+          detail: 'Default project created.',
+        })
+      }
     })().catch((err) => {
       // Reset so a transient failure can be retried on the next request.
       bootstrapPromise = null

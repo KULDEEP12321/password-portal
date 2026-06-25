@@ -49,6 +49,21 @@ export const SECRET_TYPES: { value: SecretType; label: string }[] = [
   { value: 'other', label: 'Other' },
 ]
 
+/**
+ * A project ("room") — a private container for secrets with its own member list.
+ * Only members (and admins) can see or use the secrets inside it.
+ */
+export interface PublicProject {
+  id: string
+  name: string
+  description?: string
+  memberIds: string[]
+  createdAt: string
+  createdBy: string
+  /** Number of secrets in the project (filled by the list endpoint). */
+  secretCount?: number
+}
+
 /** A registered user, without any sensitive fields (never includes the hash). */
 export interface PublicUser {
   id: string
@@ -66,6 +81,7 @@ export interface PublicUser {
  */
 export interface SecretMeta {
   id: string
+  projectId: string
   name: string
   type: SecretType
   username?: string
@@ -86,6 +102,7 @@ export interface RevealResult {
 
 /** Shape submitted by the create/edit form. */
 export interface SecretInput {
+  projectId: string
   name: string
   type: SecretType
   value: string
@@ -106,6 +123,9 @@ export type AuditAction =
   | 'user.create'
   | 'user.delete'
   | 'user.password'
+  | 'project.create'
+  | 'project.update'
+  | 'project.delete'
   | 'audit.clear'
   | 'bootstrap'
 
@@ -120,6 +140,9 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   'user.create': 'Created user',
   'user.delete': 'Deleted user',
   'user.password': 'Changed password',
+  'project.create': 'Created project',
+  'project.update': 'Updated project',
+  'project.delete': 'Deleted project',
   'audit.clear': 'Cleared audit log',
   bootstrap: 'Bootstrapped admin',
 }

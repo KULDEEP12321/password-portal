@@ -35,6 +35,7 @@ const secretTypeSchema = z.enum([
 ])
 
 export const secretInputSchema = z.object({
+  projectId: idValue,
   name: z.string().trim().min(1, 'Name is required').max(200),
   type: secretTypeSchema,
   value: z.string().min(1, 'Value is required').max(20000),
@@ -54,6 +55,16 @@ export const secretInputSchema = z.object({
 export const updateSecretSchema = secretInputSchema.extend({ id: idValue })
 
 export const idSchema = z.object({ id: idValue })
+
+export const projectIdSchema = z.object({ projectId: idValue })
+
+export const createProjectSchema = z.object({
+  name: z.string().trim().min(1, 'Project name is required').max(120),
+  description: z.string().trim().max(500).optional().default(''),
+  memberIds: z.array(idValue).max(200).default([]),
+})
+
+export const updateProjectSchema = createProjectSchema.extend({ id: idValue })
 
 export const roleSchema = z.enum(['admin', 'editor', 'viewer'])
 

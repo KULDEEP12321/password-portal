@@ -17,6 +17,7 @@ const PREFIX = 'secrets/'
 
 interface SecretRecord {
   id: string
+  projectId: string
   name: string
   type: SecretType
   username?: string
@@ -37,6 +38,7 @@ function keyFor(id: string): string {
 function toMeta(rec: SecretRecord): SecretMeta {
   return {
     id: rec.id,
+    projectId: rec.projectId,
     name: rec.name,
     type: rec.type,
     username: rec.username,
@@ -56,11 +58,12 @@ async function loadRecord(id: string): Promise<SecretRecord> {
   return rec
 }
 
-export async function listSecrets(): Promise<SecretMeta[]> {
+export async function listSecrets(projectId?: string): Promise<SecretMeta[]> {
   const keys = await listKeys(PREFIX)
   const loaded = await Promise.all(keys.map((k) => getJson<SecretRecord>(k.key)))
   return loaded
     .filter((r): r is SecretRecord => r != null)
+    .filter((r) => (projectId ? r.projectId === projectId : true))
     .map(toMeta)
     .sort((a, b) => a.name.localeCompare(b.name))
 }
@@ -84,6 +87,7 @@ export async function createSecret(input: SecretInput, actor: string): Promise<S
   const now = new Date().toISOString()
   const rec: SecretRecord = {
     id: randomUUID(),
+    projectId: input.projectId,
     name: input.name,
     type: input.type,
     username: input.username || undefined,
@@ -123,4 +127,26 @@ export async function deleteSecret(id: string): Promise<SecretMeta> {
   const rec = await loadRecord(id)
   await delKey(keyFor(id))
   return toMeta(rec)
+}
+
+/** Count secrets per project id, for project listings. */
+export async function countSecretsByProject(): Promise<Record<string, number>> {
+  const keys = await listKeys(PREFIX)
+  const loaded = await Promise.all(keys.map((k) => getJson<SecretRecord>(k.key)))
+  const counts: Record<string, number> = {}
+  for (const r of loaded) {
+    if (r) counts[r.projectId] = (counts[r.projectId] ?? 0) + 1
+  }
+  return counts
+}
+
+/** Delete every secret belonging to a project (used when a project is deleted). */
+export async function deleteSecretsInProject(projectId: string): Promise<number> {
+  const keys = await listKeys(PREFIX)
+  const loaded = await Promise.all(
+    keys.map(async (k) => ({ key: k.key, rec: await getJson<SecretRecord>(k.key) })),
+  )
+  const targets = loaded.filter((x) => x.rec?.projectId === projectId)
+  await Promise.all(targets.map((x) => delKey(x.key)))
+  return targets.length
 }

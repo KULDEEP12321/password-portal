@@ -18,12 +18,14 @@ function generatePassword(length = 24): string {
 
 export function SecretForm({
   mode,
+  projectId,
   meta,
   reveal,
   onClose,
   onSaved,
 }: {
   mode: 'create' | 'edit'
+  projectId: string
   meta?: SecretMeta
   reveal?: RevealResult
   onClose: () => void
@@ -47,6 +49,7 @@ export function SecretForm({
     if (!value) return setError('Secret value is required.')
 
     const input: SecretInput = {
+      projectId,
       name: name.trim(),
       type,
       value,
