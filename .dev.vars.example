@@ -8,3 +8,8 @@ ADMIN_NAME=Administrator
 # Local dev runs on http, so disable Secure cookies here.
 COOKIE_SECURE=false
 TRUST_PROXY=false
+
+# --- Google OAuth ---
+ADMIN_EMAILS=admin1@example.com,admin2@example.com
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=

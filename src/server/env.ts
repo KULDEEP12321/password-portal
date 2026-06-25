@@ -22,6 +22,13 @@ export interface AdminSeed {
   username: string
   password: string
   name: string
+  /** Google emails that should always be seeded/kept as admins. */
+  emails: string[]
+}
+
+export interface GoogleConfig {
+  clientId: string
+  clientSecret: string
 }
 
 export interface AppConfig {
@@ -36,6 +43,7 @@ export interface AppConfig {
   r2: R2Config | null
   localDir: string
   admin: AdminSeed | null
+  google: GoogleConfig | null
 }
 
 function req(name: string): string {
@@ -106,10 +114,26 @@ function buildConfig(): AppConfig {
 
   const adminUser = opt('ADMIN_USERNAME')
   const adminPass = opt('ADMIN_PASSWORD')
+  // ADMIN_EMAILS is a comma-separated allowlist of Google emails to seed as
+  // admins (ADMIN_EMAIL kept as a single-value fallback for compatibility).
+  const adminEmails = (opt('ADMIN_EMAILS') ?? opt('ADMIN_EMAIL') ?? '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)
   const admin: AdminSeed | null =
     adminUser && adminPass
-      ? { username: adminUser, password: adminPass, name: opt('ADMIN_NAME') ?? 'Administrator' }
+      ? {
+          username: adminUser,
+          password: adminPass,
+          name: opt('ADMIN_NAME') ?? 'Administrator',
+          emails: adminEmails,
+        }
       : null
+
+  const gId = opt('GOOGLE_CLIENT_ID')
+  const gSecret = opt('GOOGLE_CLIENT_SECRET')
+  const google: GoogleConfig | null =
+    gId && gSecret ? { clientId: gId, clientSecret: gSecret } : null
 
   // Secure-by-default: the session cookie is a bearer credential. Only an
   // explicit COOKIE_SECURE=false (for local http dev) disables the Secure flag.
@@ -132,6 +156,7 @@ function buildConfig(): AppConfig {
     r2,
     localDir: opt('LOCAL_STORAGE_DIR') ?? '.data',
     admin,
+    google,
   }
 }
 

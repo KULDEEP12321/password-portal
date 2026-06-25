@@ -4,7 +4,7 @@ import { getActorContext, requireUser } from '../server/session'
 import {
   createUser,
   deleteUserById,
-  getUserByUsername,
+  getUserByEmail,
   listUserRecords,
   toPublicUser,
 } from '../server/users'
@@ -19,7 +19,7 @@ export const listUsersFn = createServerFn({ method: 'GET' }).handler(
     const users = await listUserRecords()
     return users
       .map(toPublicUser)
-      .sort((a, b) => a.username.localeCompare(b.username))
+      .sort((a, b) => (a.email ?? a.username).localeCompare(b.email ?? b.username))
   },
 )
 
@@ -29,17 +29,23 @@ export const createUserFn = createServerFn({ method: 'POST' })
     const admin = await requireUser(['admin'])
     const { ip, userAgent } = getActorContext()
 
-    if (await getUserByUsername(data.username)) {
-      throw Errors.conflict(`A user named "${data.username}" already exists.`)
+    if (await getUserByEmail(data.email)) {
+      throw Errors.conflict(`${data.email} already has access.`)
     }
 
-    const user = await createUser(data)
+    // The Google email is the account's identity and its storage key.
+    const user = await createUser({
+      username: data.email,
+      email: data.email,
+      name: data.name,
+      role: data.role,
+    })
     await writeAudit({
       actor: admin.username,
       actorId: admin.id,
       action: 'user.create',
       targetId: user.id,
-      targetName: user.username,
+      targetName: user.email ?? user.username,
       ip,
       userAgent,
       detail: `role=${user.role}`,

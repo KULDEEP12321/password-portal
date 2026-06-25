@@ -1,6 +1,6 @@
 # Vault — Internal Secrets & Password Portal
 
-> 🔗 **Live:** https://password-portal.seoexpertup.workers.dev
+> 🔗 **Live:** https://vault.protechplanner.com
 > &nbsp;·&nbsp; Deployed on **Cloudflare Workers**, secrets stored in **Cloudflare R2**, encrypted with **AES-256-GCM**.
 
 A production-grade internal portal for storing and retrieving passwords, API keys,
@@ -10,7 +10,7 @@ the server before it is written to Cloudflare R2** — the encryption key and st
 credentials live only in server-side secrets and are never exposed to the browser.
 
 **Tech stack:** TanStack Start · React 19 · TypeScript · Tailwind CSS v4 · Cloudflare
-Workers · Cloudflare R2 · Zod · bcrypt · sealed-cookie sessions.
+Workers · Cloudflare R2 · Google OAuth 2.0 · Zod · bcrypt · sealed-cookie sessions.
 
 > ℹ️ The live app is **login-gated** (no public demo credentials). Follow
 > [Quick start](#quick-start) to run it locally, or [Deployment](#deployment-cloudflare-workers)
@@ -46,6 +46,11 @@ Workers · Cloudflare R2 · Zod · bcrypt · sealed-cookie sessions.
   through a secure, authenticated, rate-limited, audited backend call.
 - 🔎 **Search & filter** — by name, username, URL, type, or tag.
 - 📋 **Copy to clipboard**, **show/hide**, and a **strong-value generator**.
+- 🔓 **Google sign-in (OAuth 2.0)** — users authenticate with their Google account,
+  checked against an **admin-managed email allowlist**; admins are seeded from
+  `ADMIN_EMAILS`. A username/password path remains as a break-glass fallback.
+- 🗂️ **Projects (private rooms)** — secrets are grouped into projects with
+  per-project membership; non-admins only see projects they belong to, admins see all.
 - 👥 **Authentication & RBAC** — sealed-cookie sessions; `admin` / `editor` /
   `viewer` roles enforced on the server.
 - 🔑 **Self-service password change** — any signed-in user can rotate their own
@@ -66,7 +71,7 @@ Workers · Cloudflare R2 · Zod · bcrypt · sealed-cookie sessions.
 Browser (React UI, no secrets, no keys)
    │   type-safe server-function calls (RPC over HTTPS)
    ▼
-src/fn/*           ← server functions: auth, secrets, audit, users
+src/fn/*           ← server functions: auth, oauth, secrets, projects, audit, users
    │                 (authenticate → authorize → validate → audit)
    ▼
 src/server/*       ← server-only domain + infrastructure
@@ -103,13 +108,15 @@ src/
   lib/
     clipboard.ts  format.ts  errors.ts
   fn/                      Server functions (the API layer)
-    auth.ts  secrets.ts  audit.ts  users.ts
+    auth.ts  oauth.ts  secrets.ts  projects.ts  audit.ts  users.ts
   server/                  Server-only code (see diagram above)
   routes/
     __root.tsx  index.tsx  login.tsx
+    auth/google/callback.tsx   Google OAuth redirect target
     dashboard/
       route.tsx            Protected layout (auth gate + nav)
       index.tsx            Secrets dashboard
+      projects.tsx         Projects / private rooms (admin)
       audit.tsx            Audit log (admin)
       users.tsx            User management (admin)
 ```
@@ -122,7 +129,8 @@ src/
 | --- | --- |
 | Secret confidentiality | AES-256-GCM. Random 96-bit IV per value; 128-bit auth tag detects tampering. Key from `MASTER_ENCRYPTION_KEY` (32 bytes, base64), held only in server memory. |
 | What's encrypted | The **value** and **notes**. Name/type/username/URL/tags are stored as cleartext metadata so the dashboard can list and search without decrypting. |
-| Passwords | bcrypt (cost 12). Plaintext never stored. Login does a constant-work comparison even for unknown users to resist username enumeration. |
+| Authentication | **Google OAuth 2.0** (primary): the authorization-code flow runs server-side; the verified email from Google's ID token is matched against an admin-managed allowlist before a session is issued. The CSRF `state` is bound to an httpOnly cookie. No password is stored for Google users. |
+| Passwords (fallback) | bcrypt. Plaintext never stored. Login does a constant-work comparison even for unknown users to resist username enumeration. |
 | Sessions | TanStack Start sealed sessions — the cookie is encrypted+signed with `SESSION_PASSWORD`, `httpOnly`, `sameSite=lax`, and `Secure` in production. Only `{userId, username, role}` is stored; re-validated against storage on every request. |
 | Authorization | Every server function calls `requireUser([roles])`. Writes require `admin`/`editor`; audit & user management require `admin`. |
 | Reveal control | Decryption happens only in `revealSecret`, only for authenticated users, rate-limited per user, and written to the audit log. |
@@ -145,12 +153,14 @@ npm install      # already done during setup
 npm run dev      # http://localhost:3000  (workerd + local R2)
 ```
 
-Sign in with the bootstrap admin from `.dev.vars`:
+**Sign in with Google (primary).** Set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`
+in `.dev.vars`, list your admin Google emails in `ADMIN_EMAILS`, and register
+`http://localhost:3000/auth/google/callback` as an **authorized redirect URI** on
+the OAuth client. Those emails are seeded as admins — click **Continue with Google**.
 
-- **Username:** `admin`
-- **Password:** the `ADMIN_PASSWORD` value in `.dev.vars`
-
-The admin account is created automatically on first run when no users exist yet.
+**Username/password (fallback).** The bootstrap admin from `.dev.vars` — username
+`admin`, password = the `ADMIN_PASSWORD` value — is created automatically on first
+run when no users exist.
 
 Other scripts:
 
@@ -168,7 +178,9 @@ npm run typecheck  # tsc --noEmit
 | --- | --- | --- |
 | `MASTER_ENCRYPTION_KEY` | ✅ | AES-256 key, **32 bytes base64**. `openssl rand -base64 32`. Rotating it makes existing secrets unreadable — see [Maintenance](#maintenance--operations). |
 | `SESSION_PASSWORD` | ✅ | Seals the session cookie. **≥ 32 chars.** `openssl rand -hex 32`. |
-| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | first run | Bootstrap admin, created when no users exist. `ADMIN_NAME` optional. |
+| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | first run | Bootstrap (fallback) admin, created when no users exist. `ADMIN_NAME` optional. |
+| `ADMIN_EMAILS` | for Google login | Comma-separated Google emails always seeded/kept as admins (e.g. `a@gmail.com,b@gmail.com`). `ADMIN_EMAIL` accepted as a single-value alias. |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | for Google login | Google OAuth 2.0 **Web application** client credentials. When both are set, "Continue with Google" is enabled. |
 | `STORAGE_DRIVER` | – | `r2binding` (Workers R2 binding — the deployed default), `r2` (S3 API), or `local` (dev fs). Set to `r2binding` in `wrangler.jsonc`. |
 | `R2_ACCOUNT_ID` | for R2 | Cloudflare account id (endpoint is derived from it). |
 | `R2_ENDPOINT` | alt | Full endpoint, e.g. `https://<id>.r2.cloudflarestorage.com` (use instead of account id). |
@@ -234,7 +246,9 @@ authenticated RPC endpoints; their bodies run only on the server.
 | Function (`src/fn/…`) | Method | Auth | Purpose |
 | --- | --- | --- | --- |
 | `meFn` | GET | – | Current user (or null); bootstraps admin on first run |
-| `loginFn` | POST | – | Authenticate, set session (rate-limited) |
+| `loginFn` | POST | – | Username/password authenticate, set session (rate-limited) |
+| `startGoogleFn` | POST | – | Begin Google OAuth — returns the authorize URL, sets the CSRF `state` cookie |
+| `finishGoogleFn` | POST | – | Complete OAuth — verify, allowlist-check the email, set session |
 | `logoutFn` | POST | session | Clear session |
 | `listSecretsFn` | GET | any role | Secret **metadata** (never values) |
 | `revealSecretFn` | POST | any role | Decrypt one value (rate-limited, audited) |
@@ -243,17 +257,21 @@ authenticated RPC endpoints; their bodies run only on the server.
 | `deleteSecretFn` | POST | admin/editor | Delete record |
 | `listAuditFn` | GET | admin | Recent audit entries |
 | `listUsersFn` | GET | admin | List users (no hashes) |
-| `createUserFn` | POST | admin | Create user (bcrypt) |
+| `createUserFn` | POST | admin | Add a user by Google email + role |
 | `deleteUserFn` | POST | admin | Delete user (guards self/last admin) |
+| `listProjectsFn` / `createProjectFn` / `updateProjectFn` / `deleteProjectFn` | GET/POST | admin\* | Projects (private rooms); membership controls non-admin access |
+| `changePasswordFn` | POST | session | Rotate the fallback password |
+| `clearAuditFn` | POST | admin | Clear the audit log (records an accountability entry) |
 
 ---
 
 ## Storage layout
 
 ```
-secrets/<uuid>.json       Encrypted secret record  { value:{iv,tag,data}, notes?, …metadata }
-users/<username>.json     User record              { id, role, passwordHash, … }
-audit/<iso>__<uuid>.json  Append-only audit entry  (ISO-timestamp key = chronological)
+secrets/<uuid>.json        Encrypted secret record  { projectId, value:{iv,tag,data}, notes?, …metadata }
+projects/<uuid>.json       Project (private room)   { id, name, memberIds, createdBy, … }
+users/<key>.json           User record              { id, email?, role, passwordHash?, … }  (Google users keyed by email)
+audit/<iso>__<uuid>.json   Append-only audit entry  (ISO-timestamp key = chronological)
 ```
 
 All objects are JSON. Only `value`/`notes` inside `secrets/*` are ciphertext.
@@ -282,16 +300,25 @@ npm run deploy
 printf '%s' "$(openssl rand -base64 32)" | npx wrangler secret put MASTER_ENCRYPTION_KEY
 printf '%s' "$(openssl rand -hex 32)"    | npx wrangler secret put SESSION_PASSWORD
 printf '%s' '<choose-a-strong-password>' | npx wrangler secret put ADMIN_PASSWORD
+printf '%s' '<google-oauth-client-id>'     | npx wrangler secret put GOOGLE_CLIENT_ID
+printf '%s' '<google-oauth-client-secret>' | npx wrangler secret put GOOGLE_CLIENT_SECRET
 ```
+
+Set the admin Google emails in `wrangler.jsonc` (`vars.ADMIN_EMAILS`) and register
+`https://<your-domain>/auth/google/callback` as an authorized redirect URI on the
+OAuth client.
 
 The Worker is then live at `https://password-portal.<your-subdomain>.workers.dev`.
 Sign in as `admin` with the `ADMIN_PASSWORD` you set.
 
 ### Config split
 - **`wrangler.jsonc` → `vars`** — non-sensitive (`APP_NAME`, `STORAGE_DRIVER=r2binding`,
-  `COOKIE_SECURE=true`, `TRUST_PROXY=false`, session settings, `ADMIN_USERNAME`).
+  `COOKIE_SECURE=true`, `TRUST_PROXY=false`, session settings, `ADMIN_USERNAME`, `ADMIN_EMAILS`).
 - **`wrangler secret put`** — sensitive (`MASTER_ENCRYPTION_KEY`, `SESSION_PASSWORD`,
-  `ADMIN_PASSWORD`). With `nodejs_compat`, both vars and secrets appear on `process.env`.
+  `ADMIN_PASSWORD`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`). With `nodejs_compat`,
+  both vars and secrets appear on `process.env`.
+- **Google OAuth** — create a **Web application** OAuth client and register the callback
+  as an authorized redirect URI: `https://<your-domain>/auth/google/callback`.
 - **R2 binding** `SECRETS_BUCKET` → your bucket, accessed via `cloudflare:workers`.
 
 ### Notes

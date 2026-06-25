@@ -62,7 +62,7 @@ function UsersPage() {
             <table className="tbl">
               <thead>
                 <tr>
-                  <th>Username</th>
+                  <th>User</th>
                   <th>Name</th>
                   <th>Role</th>
                   <th>Created</th>
@@ -74,7 +74,7 @@ function UsersPage() {
                 {users.map((u) => (
                   <tr key={u.id}>
                     <td className="font-medium">
-                      {u.username}
+                      {u.email ?? u.username}
                       {u.id === current.id && (
                         <span className="badge" style={{ marginLeft: 8 }}>
                           you
@@ -136,8 +136,8 @@ function UsersPage() {
           }
         >
           <p className="text-sm" style={{ color: 'var(--text-soft)' }}>
-            Remove <strong style={{ color: 'var(--text)' }}>{deleting.username}</strong>? They will
-            lose all access immediately.
+            Remove <strong style={{ color: 'var(--text)' }}>{deleting.email ?? deleting.username}</strong>?
+            They will lose all access immediately.
           </p>
         </Modal>
       )}
@@ -152,9 +152,8 @@ function AddUserModal({
   onClose: () => void
   onSaved: () => void | Promise<void>
 }) {
-  const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [name, setName] = useState('')
-  const [password, setPassword] = useState('')
   const [role, setRole] = useState<Role>('viewer')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -164,10 +163,10 @@ function AddUserModal({
     setError(null)
     setSaving(true)
     try {
-      await createUserFn({ data: { username, name, password, role } })
+      await createUserFn({ data: { email, name, role } })
       await onSaved()
     } catch (err) {
-      setError(errorMessage(err, 'Could not create user.'))
+      setError(errorMessage(err, 'Could not add user.'))
       setSaving(false)
     }
   }
@@ -175,7 +174,7 @@ function AddUserModal({
   return (
     <Modal
       title="Add user"
-      description="Create an internal account. The password is hashed with bcrypt."
+      description="Grant access to a Google account. They sign in with Google — no password is set."
       onClose={onClose}
       footer={
         <>
@@ -184,43 +183,38 @@ function AddUserModal({
           </Button>
           <Button type="submit" form="add-user-form" variant="primary" loading={saving}>
             <Plus size={16} />
-            Create user
+            Add user
           </Button>
         </>
       }
     >
       <form id="add-user-form" onSubmit={submit} className="grid gap-4">
         {error && <Alert variant="danger">{error}</Alert>}
+        <Field
+          label="Google email"
+          htmlFor="u-email"
+          hint="The Gmail / Google Workspace address they sign in with"
+        >
+          <input
+            id="u-email"
+            type="email"
+            className="input"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="person@gmail.com"
+            autoComplete="off"
+            autoFocus
+            required
+          />
+        </Field>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Username" htmlFor="u-username" hint="3–40 chars: letters, numbers, . - _">
-            <input
-              id="u-username"
-              className="input"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              autoComplete="off"
-              required
-            />
-          </Field>
           <Field label="Display name" htmlFor="u-name">
             <input
               id="u-name"
               className="input"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              required
-            />
-          </Field>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Password" htmlFor="u-password" hint="At least 8 characters">
-            <input
-              id="u-password"
-              type="password"
-              className="input"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="new-password"
+              placeholder="Jane Doe"
               required
             />
           </Field>

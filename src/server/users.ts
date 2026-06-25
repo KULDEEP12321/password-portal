@@ -26,11 +26,18 @@ const PREFIX = 'users/'
 export interface UserRecord {
   id: string
   username: string
+  /** Google account email — the identity used for OAuth sign-in. */
+  email?: string
   name: string
   role: Role
-  passwordHash: string
+  /** Optional: only set for accounts that can also sign in with a password. */
+  passwordHash?: string
   createdAt: string
   lastLoginAt?: string
+}
+
+export function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase()
 }
 
 /** Normalize a username for use as a storage key (case-insensitive, safe chars). */
@@ -46,6 +53,7 @@ export function toPublicUser(u: UserRecord): PublicUser {
   return {
     id: u.id,
     username: u.username,
+    email: u.email,
     name: u.name,
     role: u.role,
     createdAt: u.createdAt,
@@ -66,6 +74,13 @@ export async function listUserRecords(): Promise<UserRecord[]> {
 export async function getUserById(id: string): Promise<UserRecord | null> {
   const all = await listUserRecords()
   return all.find((u) => u.id === id) ?? null
+}
+
+/** Look up a user by their (verified) Google email — the OAuth allowlist check. */
+export async function getUserByEmail(email: string): Promise<UserRecord | null> {
+  const target = normalizeEmail(email)
+  const all = await listUserRecords()
+  return all.find((u) => u.email && normalizeEmail(u.email) === target) ?? null
 }
 
 // A throwaway hash used to equalize response timing when the supplied username
@@ -96,8 +111,9 @@ export async function verifyCredentials(
 export interface CreateUserInput {
   username: string
   name: string
-  password: string
   role: Role
+  email?: string
+  password?: string
 }
 
 export async function createUser(input: CreateUserInput): Promise<UserRecord> {
@@ -109,9 +125,10 @@ export async function createUser(input: CreateUserInput): Promise<UserRecord> {
   const record: UserRecord = {
     id: randomUUID(),
     username,
+    email: input.email ? normalizeEmail(input.email) : undefined,
     name: input.name.trim(),
     role: input.role,
-    passwordHash: await bcrypt.hash(input.password, BCRYPT_ROUNDS),
+    passwordHash: input.password ? await bcrypt.hash(input.password, BCRYPT_ROUNDS) : undefined,
     createdAt: new Date().toISOString(),
   }
   await putJson(keyFor(username), record)
@@ -151,36 +168,70 @@ export function ensureBootstrap(): Promise<void> {
     bootstrapPromise = (async () => {
       const admin = getEnv().admin
       if (!admin) return
-      if ((await countUsers()) > 0) return
-      const user = await createUser({
-        username: admin.username,
-        name: admin.name,
-        password: admin.password,
-        role: 'admin',
-      })
-      await writeAudit({
-        actor: 'system',
-        action: 'bootstrap',
-        targetId: user.id,
-        targetName: user.username,
-        detail: 'Initial admin account created from environment.',
-      })
-      // eslint-disable-next-line no-console
-      console.info(`[bootstrap] Created initial admin user "${user.username}".`)
 
-      // Seed a default project so there is always somewhere to store secrets.
-      if ((await countProjects()) === 0) {
-        const project = await createProject(
-          { name: 'General', description: 'Default project.', memberIds: [user.id] },
-          user.username,
-        )
+      // First run only: create the break-glass password admin (tied to the
+      // first configured Google email) plus a default project to hold secrets.
+      if ((await countUsers()) === 0) {
+        const user = await createUser({
+          username: admin.username,
+          name: admin.name,
+          password: admin.password,
+          email: admin.emails[0],
+          role: 'admin',
+        })
         await writeAudit({
           actor: 'system',
-          action: 'project.create',
-          targetId: project.id,
-          targetName: project.name,
-          detail: 'Default project created.',
+          action: 'bootstrap',
+          targetId: user.id,
+          targetName: user.username,
+          detail: 'Initial admin account created from environment.',
         })
+        // eslint-disable-next-line no-console
+        console.info(`[bootstrap] Created initial admin user "${user.username}".`)
+
+        if ((await countProjects()) === 0) {
+          const project = await createProject(
+            { name: 'General', description: 'Default project.', memberIds: [user.id] },
+            user.username,
+          )
+          await writeAudit({
+            actor: 'system',
+            action: 'project.create',
+            targetId: project.id,
+            targetName: project.name,
+            detail: 'Default project created.',
+          })
+        }
+      }
+
+      // Ensure every configured admin email is an admin account that can sign in
+      // with Google. Idempotent: promotes an existing record, or creates one.
+      for (const email of admin.emails) {
+        const existing = await getUserByEmail(email)
+        if (existing) {
+          if (existing.role !== 'admin') {
+            existing.role = 'admin'
+            await putJson(keyFor(existing.username), existing)
+            // eslint-disable-next-line no-console
+            console.info(`[bootstrap] Promoted "${email}" to admin.`)
+          }
+        } else {
+          const u = await createUser({
+            username: email,
+            email,
+            name: email.split('@')[0],
+            role: 'admin',
+          })
+          await writeAudit({
+            actor: 'system',
+            action: 'user.create',
+            targetId: u.id,
+            targetName: email,
+            detail: 'Seed admin (Google).',
+          })
+          // eslint-disable-next-line no-console
+          console.info(`[bootstrap] Created seed admin "${email}".`)
+        }
       }
     })().catch((err) => {
       // Reset so a transient failure can be retried on the next request.

@@ -73,15 +73,17 @@ export const changePasswordSchema = z.object({
   newPassword: z.string().min(8, 'New password must be at least 8 characters').max(200),
 })
 
+// Users now sign in with Google, so an account is keyed by its Google email.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 export const createUserSchema = z.object({
-  username: z
+  email: z
     .string()
     .trim()
-    .regex(
-      /^[a-zA-Z0-9._-]{3,40}$/,
-      'Use 3–40 characters: letters, numbers, dots, dashes, underscores',
-    ),
+    .toLowerCase()
+    .min(3, 'Email is required')
+    .max(200)
+    .regex(EMAIL_RE, 'Enter a valid email address'),
   name: z.string().trim().min(1, 'Name is required').max(100),
-  password: z.string().min(8, 'Password must be at least 8 characters').max(200),
   role: roleSchema,
 })

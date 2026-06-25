@@ -68,6 +68,7 @@ export interface PublicProject {
 export interface PublicUser {
   id: string
   username: string
+  email?: string
   name: string
   role: Role
   createdAt: string
